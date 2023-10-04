@@ -1,5 +1,7 @@
 import Head from "next/head";
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
+import { collection, addDoc } from "firebase/firestore";
+import { db } from "../lib/firebase";
 
 type ItemType = { name: string; price: number };
 
@@ -10,7 +12,37 @@ export default function Home() {
     { name: "Candy", price: 300 },
   ]);
 
+  const [newItem, setNewItem] = useState<ItemType>({
+    name: "",
+    price: 0,
+  });
+
   const [total, setTotal] = useState(0);
+
+  // create
+  const addItem: (e: FormEvent<HTMLFormElement>) => Promise<void> = async (
+    e: FormEvent<HTMLFormElement>,
+  ) => {
+    e.preventDefault();
+    if (newItem.name !== "" && newItem.price > 0) {
+      try {
+        const docRef = await addDoc(collection(db, "items"), {
+          name: newItem.name,
+          price: newItem.price,
+        });
+        console.log("Document written with ID: ", docRef.id);
+        setItems([...items, newItem]);
+      } catch (e) {
+        console.error("Error adding document: ", e);
+      } finally {
+        setNewItem({ name: "", price: 0 });
+      }
+    }
+  };
+
+  // read
+
+  // delete
 
   return (
     <>
@@ -25,20 +57,31 @@ export default function Home() {
             Expense Tracker
           </h1>
           <div className="flex flex-col gap-4 rounded-xl bg-white/10 p-4 text-white">
-            <form className="grid grid-cols-6 gap-4 text-black">
+            <form
+              className="grid grid-cols-6 gap-4 text-black"
+              onSubmit={(e) => void addItem(e)}
+            >
               <input
                 className="col-span-3 rounded border p-3"
                 type="text"
-                name=""
-                id=""
+                name="item"
+                id="item"
                 placeholder="Enter item"
+                value={newItem.name}
+                onChange={(e) => {
+                  setNewItem({ ...newItem, name: e.target.value });
+                }}
               />
               <input
                 className="col-span-2 rounded border p-3"
                 type="number"
-                name=""
-                id=""
+                name="price"
+                id="price"
                 placeholder="Enter price"
+                value={newItem.price}
+                onChange={(e) => {
+                  setNewItem({ ...newItem, price: Number(e.target.value) });
+                }}
               />
               <button
                 className="bg-slate-950 p-3 text-white hover:bg-slate-900"
