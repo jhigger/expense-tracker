@@ -1,21 +1,27 @@
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+} from "firebase/firestore";
 import Head from "next/head";
-import { type FormEvent, useState } from "react";
-import { collection, addDoc } from "firebase/firestore";
+import { useEffect, useState, type FormEvent } from "react";
 import { db } from "../lib/firebase";
 
-type ItemType = { name: string; price: number };
+type ItemType = { id: string; name: string; price: number };
 
 export default function Home() {
-  const [items, setItems] = useState<ItemType[]>([
-    { name: "Coffee", price: 100 },
-    { name: "Movie", price: 200 },
-    { name: "Candy", price: 300 },
-  ]);
-
-  const [newItem, setNewItem] = useState<ItemType>({
+  const [items, setItems] = useState<ItemType[]>([]);
+  const empty = {
+    id: "",
     name: "",
     price: 0,
-  });
+  };
+  const [newItem, setNewItem] = useState<ItemType>(empty);
 
   const [total, setTotal] = useState(0);
 
@@ -29,20 +35,43 @@ export default function Home() {
         const docRef = await addDoc(collection(db, "items"), {
           name: newItem.name,
           price: newItem.price,
+          timestamp: serverTimestamp(),
         });
         console.log("Document written with ID: ", docRef.id);
-        setItems([...items, newItem]);
       } catch (e) {
         console.error("Error adding document: ", e);
       } finally {
-        setNewItem({ name: "", price: 0 });
+        setNewItem(empty);
       }
     }
   };
 
   // read
+  useEffect(() => {
+    const q = query(collection(db, "items"), orderBy("timestamp", "asc"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const itemsArr: ItemType[] = [];
+
+      querySnapshot.forEach((doc) => {
+        itemsArr.push({ ...doc.data(), id: doc.id } as ItemType);
+      });
+      setItems(itemsArr);
+
+      const total = itemsArr.reduce((sum, item) => {
+        return sum + item.price;
+      }, 0);
+      setTotal(total);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // delete
+  const deleteItem = async (id: string) => {
+    await deleteDoc(doc(db, "items", id));
+  };
 
   return (
     <>
@@ -93,10 +122,10 @@ export default function Home() {
             {items.length > 0 && (
               <>
                 <ul>
-                  {items.map((item, id) => {
+                  {items.map((item) => {
                     return (
                       <li
-                        key={id}
+                        key={item.id}
                         className="border-b-2 border-white/10 bg-slate-950 last:border-b-0"
                       >
                         <div className="grid grid-cols-6 gap-4">
@@ -106,7 +135,10 @@ export default function Home() {
                           <span className="col-span-2 p-3 text-center">
                             {item.price}
                           </span>
-                          <button className="border-l-2 border-white/10 bg-slate-950 p-3 text-white hover:bg-slate-900">
+                          <button
+                            onClick={() => void deleteItem(item.id)}
+                            className="border-l-2 border-white/10 bg-slate-950 p-3 text-white hover:bg-slate-900"
+                          >
                             -
                           </button>
                         </div>
@@ -116,6 +148,7 @@ export default function Home() {
                 </ul>
                 <div className="flex justify-between p-3">
                   <span>Total:</span>
+                  <span className="mx-2 mb-1 w-full border-b-2 border-dotted"></span>
                   <span>{total}</span>
                 </div>
               </>
