@@ -50,14 +50,12 @@ export default function Home() {
   useEffect(() => {
     const q = query(collection(db, "items"), orderBy("timestamp", "asc"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const itemsArr: ItemType[] = [];
-
-      querySnapshot.forEach((doc) => {
-        itemsArr.push({ ...doc.data(), id: doc.id } as ItemType);
+      const newItems = querySnapshot.docs.map((doc) => {
+        return { ...doc.data(), id: doc.id } as ItemType;
       });
-      setItems(itemsArr);
+      setItems(newItems);
 
-      const total = itemsArr.reduce((sum, item) => {
+      const total = newItems.reduce((sum, item) => {
         return sum + item.price;
       }, 0);
       setTotal(total);
